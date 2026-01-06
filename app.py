@@ -1,62 +1,52 @@
 import streamlit as st
 import plotly.graph_objects as go
+import pandas as pd
 from src.quant_a.data_handler import get_historical_data, get_live_price
-from src.quant_a.strategy_engine import (
-    run_buy_and_hold_strategy, 
-    run_ma_crossover_strategy, 
-    calculate_performance_metrics
-)
+from src.quant_a.strategy_engine import run_buy_and_hold_strategy, run_ma_crossover_strategy, calculate_performance_metrics
+from src.quant_b.portfolio_manager import get_portfolio_data, calculate_portfolio_metrics
 
-# Page configuration
-st.set_page_config(page_title="Quant Analysis Platform", layout="wide")
+st.set_page_config(page_title="Multi-Quant Finance Platform", layout="wide")
 
-st.title("📊 Quantitative Research Dashboard - NVIDIA")
+# Navigation
+tab1, tab2 = st.tabs(["🚀 NVIDIA Analysis (Module A)", "💼 Portfolio Management (Module B)"])
 
-# Sidebar for User Inputs
-st.sidebar.header("Strategy Parameters")
-ticker = "NVDA"
-period = st.sidebar.selectbox("Select Period", ["6mo", "1y", "2y", "5y"], index=1)
-strategy_type = st.sidebar.radio("Choose Strategy", ["Buy and Hold", "MA Crossover"])
+# ==========================================
+# MODULE A: SINGLE ASSET (YOUR PART)
+# ==========================================
+with tab1:
+    st.header("NVIDIA Quantitative Analysis")
+    # ... (On garde ton code précédent ici) ...
+    ticker = "NVDA"
+    data_a = get_historical_data(ticker, "1y")
+    if not data_a.empty:
+        st.line_chart(data_a)
 
-# Specific parameters for MA Crossover
-fast_ma = 20
-slow_ma = 50
-if strategy_type == "MA Crossover":
-    fast_ma = st.sidebar.slider("Fast Moving Average", 5, 50, 20)
-    slow_ma = st.sidebar.slider("Slow Moving Average", 51, 200, 50)
-
-# Data Retrieval
-data = get_historical_data(ticker, period)
-live_price = get_live_price(ticker)
-
-if not data.empty:
-    # Header Metrics
-    col1, col2, col3 = st.columns(3)
-    col1.metric(f"Current {ticker} Price", f"${live_price}")
+# ==========================================
+# MODULE B: MULTI-ASSET (COLLEAGUE'S PART)
+# ==========================================
+with tab2:
+    st.header("Multi-Asset Portfolio Optimization")
     
-    # Run selected strategy
-    if strategy_type == "Buy and Hold":
-        result_df = run_buy_and_hold_strategy(data)
+    # User inputs for Part B
+    assets = st.multiselect("Select Assets", ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA"], default=["AAPL", "MSFT", "TSLA"])
+    
+    if len(assets) >= 2:
+        data_b = get_portfolio_data(assets)
+        
+        # Simple Equal Weighting for now
+        weights = np.array([1/len(assets)] * len(assets))
+        
+        results = calculate_portfolio_metrics(data_b, weights)
+        
+        # Display Volatility
+        st.metric("Portfolio Annualized Volatility", f"{results['volatility']*100:.2f}%")
+        
+        # Correlation Heatmap
+        st.subheader("Asset Correlation Matrix")
+        st.write(results['correlation'])
+        
+        # Cumulative Performance
+        st.subheader("Portfolio Cumulative Return")
+        st.line_chart(results['cumulative'])
     else:
-        result_df = run_ma_crossover_strategy(data, fast_ma, slow_ma)
-    
-    # Performance Metrics
-    sharpe, mdd = calculate_performance_metrics(result_df['Returns'])
-    col2.metric("Sharpe Ratio", sharpe)
-    col3.metric("Max Drawdown", f"{mdd*100}%")
-
-    # Main Visualization (Two curves: Asset Price vs Strategy Value)
-    st.subheader(f"Performance Analysis: {strategy_type}")
-    
-    fig = go.Figure()
-    # Primary axis: Asset Price
-    fig.add_trace(go.Scatter(x=result_df.index, y=result_df['Price'], name="NVDA Price", line=dict(color='royalblue')))
-    # Secondary axis: Strategy Cumulative Return
-    fig.add_trace(go.Scatter(x=result_df.index, y=result_df['Cumulative_Return'] * result_df['Price'].iloc[0], 
-                             name="Strategy Value", line=dict(color='orange', dash='dot')))
-    
-    fig.update_layout(template="plotly_dark", hovermode="x unified", legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01))
-    st.plotly_chart(fig, use_container_width=True)
-
-else:
-    st.error("Unable to load data. Please check your connection or Ticker.")
+        st.warning("Please select at least 2 assets to analyze correlation and portfolio performance.")
