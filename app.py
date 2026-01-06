@@ -4,6 +4,7 @@ import pandas as pd
 from src.quant_a.data_handler import get_historical_data, get_live_price
 from src.quant_a.strategy_engine import run_buy_and_hold_strategy, run_ma_crossover_strategy, calculate_performance_metrics
 from src.quant_b.portfolio_manager import get_portfolio_data, calculate_portfolio_metrics
+import numpy as np
 
 st.set_page_config(page_title="Multi-Quant Finance Platform", layout="wide")
 

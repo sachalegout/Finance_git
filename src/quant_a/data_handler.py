@@ -1,33 +1,34 @@
 import yfinance as yf
 import pandas as pd
 
-# On définit le ticker pour NVIDIA
-TICKER = "NVDA"
-
-def get_nvidia_data(period="1y"):
+def get_historical_data(ticker, period="1y"):
     """
-    Récupère les données historiques de NVIDIA.
-    Period peut être '1mo', '6mo', '1y', etc.
+    Fetches historical data using the Ticker object.
+    This method returns a cleaner DataFrame that avoids MultiIndex errors.
     """
     try:
-        # Récupération des données via yfinance
-        df = yf.download(TICKER, period=period, interval="1d", progress=False)
+        # Using Ticker().history is safer for single stocks than yf.download
+        stock = yf.Ticker(ticker)
+        df = stock.history(period=period)
         
-        # On nettoie un peu pour n'avoir que le prix de clôture
         if not df.empty:
-            # On garde seulement la colonne 'Close'
-            df = df[['Close']]
-            return df
+            # The .history() method returns columns like ['Open', 'Close', ...] 
+            # so we can simply select 'Close'.
+            return df[['Close']]
+            
         return pd.DataFrame()
     except Exception as e:
-        print(f"Erreur lors de la récupération : {e}")
+        print(f"Error fetching history: {e}")
         return pd.DataFrame()
 
-def get_current_price():
-    """Récupère le tout dernier prix pour l'affichage temps réel."""
+def get_live_price(ticker):
+    """
+    Fetches the live price.
+    Accepts 'ticker' from app.py.
+    """
     try:
-        ticker_obj = yf.Ticker(TICKER)
-        # On essaie de choper le prix actuel
+        ticker_obj = yf.Ticker(ticker)
+        # fast_info is the modern way to get the latest price
         price = ticker_obj.fast_info['lastPrice']
         return price
     except:
