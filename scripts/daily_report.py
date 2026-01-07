@@ -38,7 +38,7 @@ Status: Market Close
 --------------------------------------------------
 LATEST METRICS:
 - Closing Price: ${current_price:.2f}
-- Daily Variation: {daily_return:+.2u}%
+- Daily Variation: {daily_return:+.2f}%
 - 1-Month Sharpe Ratio: {sharpe}
 - 1-Month Max Drawdown: {mdd*100:.2f}%
 --------------------------------------------------
