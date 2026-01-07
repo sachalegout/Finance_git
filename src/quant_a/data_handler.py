@@ -1,35 +1,25 @@
 import yfinance as yf
 import pandas as pd
 
-def get_historical_data(ticker, period="1y"):
+def get_historical_data(ticker="NVDA", period="1y"):
     """
-    Fetches historical data using the Ticker object.
-    This method returns a cleaner DataFrame that avoids MultiIndex errors.
+    Download and clean market data from Yahoo Finance.
     """
     try:
-        # Using Ticker().history is safer for single stocks than yf.download
-        stock = yf.Ticker(ticker)
-        df = stock.history(period=period)
+        data = yf.download(ticker, period=period, interval="1d", progress=False)
         
-        if not df.empty:
-            # The .history() method returns columns like ['Open', 'Close', ...] 
-            # so we can simply select 'Close'.
-            return df[['Close']]
-            
-        return pd.DataFrame()
-    except Exception as e:
-        print(f"Error fetching history: {e}")
-        return pd.DataFrame()
+        if data.empty:
+            return pd.DataFrame()
 
-def get_live_price(ticker):
-    """
-    Fetches the live price.
-    Accepts 'ticker' from app.py.
-    """
-    try:
-        ticker_obj = yf.Ticker(ticker)
-        # fast_info is the modern way to get the latest price
-        price = ticker_obj.fast_info['lastPrice']
-        return price
-    except:
-        return None
+        # Handle yfinance MultiIndex column issue
+        if isinstance(data.columns, pd.MultiIndex):
+            data.columns = data.columns.get_level_values(0)
+
+        # Extract closing price and rename column
+        df = data[['Close']].copy()
+        df.columns = ['Price']
+        
+        return df
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        return pd.DataFrame()

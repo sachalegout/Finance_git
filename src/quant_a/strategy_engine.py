@@ -1,45 +1,63 @@
 import pandas as pd
 import numpy as np
 
-def calculate_performance_metrics(returns):
-    """Compute Sharpe Ratio and Max Drawdown metrics."""
+def calculate_metrics(returns):
+    """
+    Compute performance KPIs: Sharpe Ratio and Maximum Drawdown.
+    """
     if returns.empty or returns.std() == 0:
         return 0.0, 0.0
+        
+    # Annualized Sharpe Ratio (assuming 252 trading days)
+    sharpe = np.sqrt(252) * returns.mean() / returns.std()
     
-    # Annualized Sharpe Ratio (using 0 as risk-free rate)
-    sharpe = np.sqrt(252) * (returns.mean() / returns.std())
+    # Calculate Maximum Drawdown (peak to trough decline)
+    cum_ret = (1 + returns).cumprod()
+    peak = cum_ret.cummax()
+    mdd = ((cum_ret - peak) / peak).min()
     
-    # Max Drawdown calculation
-    cum_wealth = (1 + returns).cumprod()
-    peak = cum_wealth.cummax()
-    drawdown = (cum_wealth - peak) / peak
-    max_dd = drawdown.min()
-    
-    return round(float(sharpe), 2), round(float(max_dd), 2)
+    return round(sharpe, 2), round(mdd * 100, 2)
 
-def run_buy_and_hold_strategy(prices):
-    """Standard long-term investment strategy."""
-    df = pd.DataFrame(prices)
-    df.columns = ['Price']
-    df['Returns'] = df['Price'].pct_change()
-    df['Cumulative_Return'] = (1 + df['Returns']).cumprod()
-    return df
+def apply_sma_strategy(df, fast=20, slow=50):
+    """
+    Trend Following: Simple Moving Average Crossover logic.
+    """
+    data = df.copy()
+    
+    # Calculate technical indicators
+    data['Fast_MA'] = data['Price'].rolling(window=fast).mean()
+    data['Slow_MA'] = data['Price'].rolling(window=slow).mean()
+    
+    # Generate Buy (1) and Neutral (0) signals
+    data['Signal'] = 0
+    data.loc[data['Fast_MA'] > data['Slow_MA'], 'Signal'] = 1
+    
+    # Backtest returns based on signals
+    data['Returns'] = data['Price'].pct_change() * data['Signal'].shift(1)
+    data['Cumulative'] = (1 + data['Returns'].fillna(0)).cumprod()
+    
+    return data
 
-def run_ma_crossover_strategy(prices, fast_ma=20, slow_ma=50):
-    """Moving Average Crossover momentum strategy."""
-    df = pd.DataFrame(prices)
-    df.columns = ['Price']
+def apply_rsi_strategy(df, window=14, low=30, high=70):
+    """
+    Mean Reversion: Relative Strength Index (RSI) strategy.
+    """
+    data = df.copy()
     
-    # Calculate moving averages
-    df['Fast_MA'] = df['Price'].rolling(window=fast_ma).mean()
-    df['Slow_MA'] = df['Price'].rolling(window=slow_ma).mean()
+    # Standard RSI calculation
+    delta = data['Price'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    data['RSI'] = 100 - (100 / (1 + rs))
     
-    # Trading signals: 1 when short MA is above long MA
-    df['Signal'] = 0
-    df.loc[df['Fast_MA'] > df['Slow_MA'], 'Signal'] = 1
+    # Generate signals: Buy when oversold (<30), Sell when overbought (>70)
+    data['Signal'] = 0
+    data.loc[data['RSI'] < low, 'Signal'] = 1 
+    data.loc[data['RSI'] > high, 'Signal'] = -1 
     
-    # Calculate returns (shifting signal to avoid look-ahead bias)
-    df['Returns'] = df['Price'].pct_change() * df['Signal'].shift(1)
-    df['Cumulative_Return'] = (1 + df['Returns']).cumprod()
+    # Strategy performance calculation
+    data['Returns'] = data['Price'].pct_change() * data['Signal'].shift(1)
+    data['Cumulative'] = (1 + data['Returns'].fillna(0)).cumprod()
     
-    return df
+    return data
